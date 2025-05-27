@@ -9,16 +9,16 @@ const int MAP_WIDTH = 16;
 const int MAP_HEIGHT = 16;
 const float FOV = 60.0f * M_PI / 180.0f;
 const float DEPTH = 16.0f;
-const float COLLISION_MARGIN = 0.2f; // Margine di collisione per impedire di avvicinarsi troppo ai muri
+const float COLLISION_MARGIN = 0.2f;
 
-// Definizione semplificata della mappa (1 = muro, 0 = spazio vuoto)
+// (1 = wall block, 0 = empty space)
 const int worldMap[MAP_WIDTH][MAP_HEIGHT] = {
     {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1},
-    {1,0,0,0,0,0,0,0,0,1,0,1,1,1,0,1},
-    {1,0,0,0,0,0,0,0,0,1,0,1,0,0,0,1},
-    {1,0,0,1,1,1,0,0,0,1,1,1,1,1,0,1},
-    {1,0,0,1,0,1,0,0,0,0,0,1,0,1,0,1},
-    {1,0,0,1,1,1,0,0,0,1,1,1,0,1,0,1},
+    {1,0,0,0,0,0,0,0,0,0,0,1,1,1,0,1},
+    {1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,1},
+    {1,0,0,1,1,1,0,0,0,1,0,1,1,1,0,1},
+    {1,0,0,1,0,1,0,0,0,1,0,1,0,0,0,1},
+    {1,0,0,1,1,1,0,0,0,1,1,1,0,0,0,1},
     {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
     {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
     {1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1},
@@ -32,23 +32,22 @@ const int worldMap[MAP_WIDTH][MAP_HEIGHT] = {
 };
 
 struct Player {
-    float x, y;       // Posizione del giocatore
-    float dirX, dirY; // Direzione di osservazione
-    float planeX, planeY; // Piano della camera
-    float moveSpeed;  // Velocità di movimento
-    float rotSpeed;   // Velocità di rotazione
-    float radius;     // Raggio del giocatore per le collisioni
+    float x, y;       // player position
+    float dirX, dirY; // looking direction
+    float planeX, planeY; // camera plane
+    float moveSpeed;  // movement speed
+    float rotSpeed;   // rotation speed
+    float radius;     // ray of the player for collision detection
 };
 
-// Funzione per verificare le collisioni con i muri
+
 bool checkCollision(float x, float y, float radius) {
-    // Controlla tutti i blocchi che potrebbero sovrapporsi con il cerchio del giocatore
     int startX = floor(x - radius);
     int endX = ceil(x + radius);
     int startY = floor(y - radius);
     int endY = ceil(y + radius);
     
-    // Assicuriamoci che stiamo controllando solo blocchi all'interno della mappa
+    // only check within the bounds of the map
     startX = std::max(0, startX);
     endX = std::min(MAP_WIDTH - 1, endX);
     startY = std::max(0, startY);
@@ -57,7 +56,7 @@ bool checkCollision(float x, float y, float radius) {
     for (int mapX = startX; mapX <= endX; mapX++) {
         for (int mapY = startY; mapY <= endY; mapY++) {
             if (worldMap[mapX][mapY] > 0) {
-                // Calcola la distanza dal centro del giocatore all'angolo più vicino del blocco
+                // calculates the distance from the center of the player to the nearest corner of the block
                 float closestX = std::max(float(mapX), std::min(x, float(mapX + 1)));
                 float closestY = std::max(float(mapY), std::min(y, float(mapY + 1)));
                 
@@ -66,19 +65,19 @@ bool checkCollision(float x, float y, float radius) {
                 float distSq = distX * distX + distY * distY;
                 
                 if (distSq < radius * radius) {
-                    return true; // Collisione rilevata
+                    return true; // collision detected
                 }
             }
         }
     }
-    return false; // Nessuna collisione
+    return false; // no collision
 }
 
 int main() {
-    sf::RenderWindow window(sf::VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "SFML Raycaster - Stile Doom");
+    sf::RenderWindow window(sf::VideoMode(WINDOW_WIDTH, WINDOW_HEIGHT), "Test Raycasting");
     window.setFramerateLimit(60);
 
-    // Inizializzazione del giocatore
+    // player initialization
     Player player;
     player.x = 8.0f;
     player.y = 8.0f;
@@ -88,7 +87,7 @@ int main() {
     player.planeY = 0.66f;
     player.moveSpeed = 0.05f;
     player.rotSpeed = 0.03f;
-    player.radius = COLLISION_MARGIN; // Raggio del giocatore per le collisioni
+    player.radius = COLLISION_MARGIN; // ray of the player for collision detection
 
     sf::Clock clock;
     
@@ -100,22 +99,22 @@ int main() {
             }
         }
 
-        // Gestione dell'input
+        // input handling
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Escape)) {
             window.close();
         }
 
-        // Calcolo delta time per movimento fluido
+        // delta time calculation for fluid motion
         float deltaTime = clock.restart().asSeconds();
-        float moveSpeed = player.moveSpeed * deltaTime * 60.0f; // Aggiustamento per FPS
-        float rotSpeed = player.rotSpeed * deltaTime * 60.0f;   // Aggiustamento per FPS
+        float moveSpeed = player.moveSpeed * deltaTime * 60.0f; // FPS adjustment
+        float rotSpeed = player.rotSpeed * deltaTime * 60.0f;   // FPS adjustment
 
-        // Movimento avanti
+        // forward movement
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::W)) {
             float nextX = player.x + player.dirX * moveSpeed;
             float nextY = player.y + player.dirY * moveSpeed;
             
-            // Controlla le collisioni separatamente per X e Y per permettere lo scivolamento lungo i muri
+            // controls collisions separately for X and Y to allow sliding along walls
             if (!checkCollision(nextX, player.y, player.radius)) {
                 player.x = nextX;
             }
@@ -123,7 +122,7 @@ int main() {
                 player.y = nextY;
             }
         }
-        // Movimento indietro
+        // backward movement
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::S)) {
             float nextX = player.x - player.dirX * moveSpeed;
             float nextY = player.y - player.dirY * moveSpeed;
@@ -135,7 +134,7 @@ int main() {
                 player.y = nextY;
             }
         }
-        // Movimento laterale sinistra (strafe)
+        // left lateral movement (strafe)
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::Q)) {
             float nextX = player.x - player.planeX * moveSpeed;
             float nextY = player.y - player.planeY * moveSpeed;
@@ -147,7 +146,7 @@ int main() {
                 player.y = nextY;
             }
         }
-        // Movimento laterale destra (strafe)
+        // right lateral movement (strafe)
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::E)) {
             float nextX = player.x + player.planeX * moveSpeed;
             float nextY = player.y + player.planeY * moveSpeed;
@@ -159,7 +158,7 @@ int main() {
                 player.y = nextY;
             }
         }
-        // Rotazione a sinistra
+        // left rotation
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::A)) {
             float oldDirX = player.dirX;
             player.dirX = player.dirX * cos(rotSpeed) - player.dirY * sin(rotSpeed);
@@ -168,7 +167,7 @@ int main() {
             player.planeX = player.planeX * cos(rotSpeed) - player.planeY * sin(rotSpeed);
             player.planeY = oldPlaneX * sin(rotSpeed) + player.planeY * cos(rotSpeed);
         }
-        // Rotazione a destra
+        // right rotation
         if (sf::Keyboard::isKeyPressed(sf::Keyboard::D)) {
             float oldDirX = player.dirX;
             player.dirX = player.dirX * cos(-rotSpeed) - player.dirY * sin(-rotSpeed);
@@ -180,42 +179,42 @@ int main() {
 
         window.clear(sf::Color(0, 0, 0));
 
-        // Floor e ceiling
+        // floor and ceiling
         sf::RectangleShape ceiling(sf::Vector2f(WINDOW_WIDTH, WINDOW_HEIGHT / 2));
-        ceiling.setFillColor(sf::Color(0, 0, 100)); // Blu scuro per il cielo
+        ceiling.setFillColor(sf::Color(0, 0, 100)); // blue for the ceiling
         ceiling.setPosition(0, 0);
         window.draw(ceiling);
 
         sf::RectangleShape floor(sf::Vector2f(WINDOW_WIDTH, WINDOW_HEIGHT / 2));
-        floor.setFillColor(sf::Color(100, 100, 100)); // Grigio per il pavimento
+        floor.setFillColor(sf::Color(100, 100, 100)); // gray for the floor
         floor.setPosition(0, WINDOW_HEIGHT / 2);
         window.draw(floor);
 
-        // Raycast rendering
+        // raycast rendering
         for (int x = 0; x < WINDOW_WIDTH; x++) {
-            // Calcolo della posizione e direzione del raggio
+            // calculation of the position and direction of the radius
             float cameraX = 2 * x / float(WINDOW_WIDTH) - 1;
             float rayDirX = player.dirX + player.planeX * cameraX;
             float rayDirY = player.dirY + player.planeY * cameraX;
 
-            // Posizione iniziale
+            // initial position
             int mapX = int(player.x);
             int mapY = int(player.y);
 
-            // Lunghezze del raggio dall'attuale posizione alla prossima x o y
+            // ray lengths from the current position to the next x or y position
             float sideDistX, sideDistY;
 
-            // Lunghezza del raggio da una x o y alla successiva
+            // lenghts of the ray in the x and y directions
             float deltaDistX = (rayDirX == 0) ? 1e30 : std::abs(1 / rayDirX);
             float deltaDistY = (rayDirY == 0) ? 1e30 : std::abs(1 / rayDirY);
             float perpWallDist;
 
-            // Direzione di step
+            // step directions
             int stepX, stepY;
-            int hit = 0; // Flag per indicare se è stato colpito un muro
+            int hit = 0; // flag for wall hit
             int side;    // NS o EW
 
-            // Calcolo di stepX, stepY e delle distanze laterali iniziali
+            // calculation of stepX, stepY and initial lateral distances
             if (rayDirX < 0) {
                 stepX = -1;
                 sideDistX = (player.x - mapX) * deltaDistX;
@@ -233,7 +232,7 @@ int main() {
 
             // DDA (Digital Differential Analysis)
             while (hit == 0) {
-                // Salto al prossimo quadrato della mappa
+                // jump to the next square
                 if (sideDistX < sideDistY) {
                     sideDistX += deltaDistX;
                     mapX += stepX;
@@ -243,49 +242,49 @@ int main() {
                     mapY += stepY;
                     side = 1;
                 }
-                // Controllo se è stato colpito un muro
+                // check if the ray has hit a wall
                 if (worldMap[mapX][mapY] > 0) hit = 1;
             }
 
-            // Calcolo della distanza perpendicolare alla parete
+            // calculation of the distance perpendicular to the wall
             if (side == 0) {
                 perpWallDist = (sideDistX - deltaDistX);
             } else {
                 perpWallDist = (sideDistY - deltaDistY);
             }
 
-            // Calcolo dell'altezza della linea da disegnare
+            // calculation of the height of the line to be drawn
             int lineHeight = (int)(WINDOW_HEIGHT / perpWallDist);
 
-            // Calcolo del punto più alto e più basso della linea
+            // calculation of the highest and lowest point of the line
             int drawStart = -lineHeight / 2 + WINDOW_HEIGHT / 2;
             if (drawStart < 0) drawStart = 0;
             int drawEnd = lineHeight / 2 + WINDOW_HEIGHT / 2;
             if (drawEnd >= WINDOW_HEIGHT) drawEnd = WINDOW_HEIGHT - 1;
 
-            // Scelta del colore della parete in base alla direzione
+            // choice of wall color based on direction
             sf::Color wallColor;
             
-            // Colore base
+            // base color
             switch (worldMap[mapX][mapY]) {
-                case 1: wallColor = sf::Color(255, 0, 0); break; // Rosso
-                default: wallColor = sf::Color(255, 255, 255); break; // Bianco
+                case 1: wallColor = sf::Color(255, 0, 0); break; // red
+                default: wallColor = sf::Color(255, 255, 255); break; // white
             }
             
-            // Rendi il colore più scuro per le pareti N/S
+            // darkening the color based on the side hit N/S or E/W
             if (side == 1) {
                 wallColor.r /= 2;
                 wallColor.g /= 2;
                 wallColor.b /= 2;
             }
 
-            // Rendi il colore più scuro in base alla distanza (nebbia)
+            // darker color for fog effect
             float fogFactor = std::min(1.0f, perpWallDist / DEPTH);
             wallColor.r = wallColor.r * (1 - fogFactor) + 0 * fogFactor;
             wallColor.g = wallColor.g * (1 - fogFactor) + 0 * fogFactor;
             wallColor.b = wallColor.b * (1 - fogFactor) + 0 * fogFactor;
 
-            // Disegna la linea verticale
+            // draw the vertical line for the wall
             sf::VertexArray line(sf::Lines, 2);
             line[0].position = sf::Vector2f(x, drawStart);
             line[0].color = wallColor;
@@ -294,12 +293,12 @@ int main() {
             window.draw(line);
         }
 
-        // Disegna la mini-mappa
+        // draw mini-map
         const float mapScale = 10.0f;
         const int mapOffsetX = WINDOW_WIDTH - MAP_WIDTH * mapScale - 10;
         const int mapOffsetY = 10;
         
-        // Disegna i blocchi della mappa
+        // drow the mini-map background
         for (int y = 0; y < MAP_HEIGHT; y++) {
             for (int x = 0; x < MAP_WIDTH; x++) {
                 if (worldMap[x][y] > 0) {
@@ -318,14 +317,14 @@ int main() {
             }
         }
         
-        // Disegna il giocatore sulla mini-mappa
+        // draw the player position on the mini-map
         sf::CircleShape playerDot(mapScale / 3);
         playerDot.setFillColor(sf::Color(0, 255, 0));
         playerDot.setPosition(mapOffsetX + player.x * mapScale - mapScale / 3, 
                              mapOffsetY + player.y * mapScale - mapScale / 3);
         window.draw(playerDot);
         
-        // Disegna la direzione del giocatore
+        // draw the player's direction on the mini-map
         sf::VertexArray direction(sf::Lines, 2);
         direction[0].position = sf::Vector2f(mapOffsetX + player.x * mapScale, 
                                            mapOffsetY + player.y * mapScale);
@@ -335,7 +334,7 @@ int main() {
         direction[1].color = sf::Color::Green;
         window.draw(direction);
 
-        // HUD - mostra la posizione e la direzione del giocatore
+        // HUD - show player position
         sf::Text positionText;
         sf::Font font;
         if (font.loadFromFile("arial.ttf")) {
